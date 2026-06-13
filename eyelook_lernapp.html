@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eyelook AG — Bilanz- & Erfolgsanalyse</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+/* ── TOKENS ── */
+:root {
+  --ink:    #18181B;
+  --ink2:   #52525B;
+  --ink3:   #A1A1AA;
+  --paper:  #FFFFFF;
+  --paper2: #F4F4F5;
+  --paper3: #FAFAFA;
+  --border: #E4E4E7;
+  --border2:#D4D4D8;
+
+  /* Module colours */
+  --bilanz: #1D4ED8;
+  --bilanz-light: #EFF6FF;
+  --bilanz-mid:   #BFDBFE;
+  --erfolg: #065F46;
+  --erfolg-light: #ECFDF5;
+  --erfolg-mid:   #A7F3D0;
+
+  /* Semantic */
+  --gut:     #15803D; --gut-bg:   #F0FDF4;
+  --mittel:  #B45309; --mittel-bg:#FFFBEB;
+  --schlecht:#B91C1C; --schlecht-bg:#FEF2F2;
+
+  --radius:   12px;
+  --radius-sm: 7px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.10), 0 2px 4px rgba(0,0,0,.06);
+}
+
+/* ── RESET ── */
+*, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
+html { scroll-behavior: smooth; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+       background: var(--paper3); color: var(--ink); font-size:14px; line-height:1.6; min-height:100vh; }
+
+/* ── LANDING ── */
+#landing {
+  min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 2rem 1rem;
+  background: var(--paper3);
+}
+.landing-logo {
+  font-size: 13px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink3); margin-bottom: 2.5rem;
+}
+.landing-title {
+  font-size: clamp(28px, 5vw, 44px); font-weight: 700; letter-spacing: -.03em;
+  text-align: center; line-height: 1.15; margin-bottom: .75rem;
+}
+.landing-title span { color: var(--bilanz); }
+.landing-sub {
+  font-size: 15px; color: var(--ink2); text-align: center; margin-bottom: 3rem; max-width: 440px;
+}
+.module-cards {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem; width: 100%; max-width: 640px;
+}
+.module-card {
+  background: var(--paper); border: 1.5px solid var(--border);
+  border-radius: var(--radius); padding: 1.75rem;
+  cursor: pointer; transition: transform .18s, box-shadow .18s, border-color .18s;
+  text-align: left; position: relative; overflow: hidden;
+}
+.module-card::before {
+  content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity .18s;
+}
+.module-card.bilanz::before { background: var(--bilanz-light); }
+.module-card.erfolg::before { background: var(--erfolg-light); }
+.module-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.module-card.bilanz:hover { border-color: var(--bilanz); }
+.module-card.erfolg:hover { border-color: var(--erfolg); }
+.module-card:hover::before { opacity: 1; }
+.module-card > * { position: relative; }
+.mc-icon {
+  width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  font-size: 20px; margin-bottom: 1rem;
+}
+.bilanz .mc-icon { background: var(--bilanz-light); }
+.erfolg .mc-icon { background: var(--erfolg-light); }
+.mc-title { font-size: 17px; font-weight: 700; letter-spacing: -.02em; margin-bottom: .35rem; }
+.bilanz .mc-title { color: var(--bilanz); }
+.erfolg .mc-title { color: var(--erfolg); }
+.mc-desc { font-size: 12px; color: var(--ink2); line-height: 1.6; margin-bottom: 1.1rem; }
+.mc-topics { display: flex; flex-wrap: wrap; gap: 5px; }
+.mc-tag { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 99px; letter-spacing:.02em; }
+.bilanz .mc-tag { background: var(--bilanz-mid); color: var(--bilanz); }
+.erfolg .mc-tag { background: var(--erfolg-mid); color: var(--erfolg); }
+.mc-arrow { position: absolute; top: 1.5rem; right: 1.5rem; font-size: 18px; color: var(--border2); transition: color .18s, transform .18s; }
+.module-card:hover .mc-arrow { color: var(--ink2); transform: translateX(3px); }
+
+/* ── APP SHELL ── */
+#app { display: none; min-height: 100vh; flex-direction: column; }
+
+/* TOPBAR */
+.topbar {
+  background: var(--paper); border-bottom: 1px solid var(--border);
+  padding: 0 1.5rem; position: sticky; top: 0; z-index: 200;
+  display: flex; align-items: center; height: 52px; gap: 1rem;
+}
+.tb-back {
+  font-size: 12px; font-weight: 600; letter-spacing:.05em; text-transform: uppercase;
+  color: var(--ink3); cursor: pointer; display: flex; align-items: center; gap: 5px;
+  border: none; background: none; transition: color .15s;
+}
+.tb-back:hover { color: var(--ink); }
+.tb-sep { width:1px; height:20px; background: var(--border); }
+.tb-module { font-size: 13px; font-weight: 700; }
+.tb-module.bilanz { color: var(--bilanz); }
+.tb-module.erfolg { color: var(--erfolg); }
+
+/* NAV TABS */
+.navtabs {
+  background: var(--paper); border-bottom: 1px solid var(--border);
+  padding: 0 1.5rem; display: flex; overflow-x: auto; gap: 0;
+}
+.ntab {
+  padding: 13px 18px; font-size: 13px; font-weight: 500; border: none; background: transparent;
+  cursor: pointer; color: var(--ink2); border-bottom: 2px solid transparent; white-space: nowrap;
+  transition: color .15s, border-color .15s;
+}
+.ntab:hover { color: var(--ink); }
+.ntab.active.bilanz-tab { color: var(--bilanz); border-bottom-color: var(--bilanz); }
+.ntab.active.erfolg-tab { color: var(--erfolg); border-bottom-color: var(--erfolg); }
+
+/* MAIN */
+.main { max-width: 1100px; margin: 0 auto; padding: 1.75rem 1.5rem; }
+.sec { display: none; }
+.sec.active { display: block; }
+
+/* CARDS */
+.card {
+  background: var(--paper); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1.35rem; margin-bottom: 1rem;
+  box-shadow: var(--shadow);
+}
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px,1fr)); gap: 1rem; }
+.card-accent-blue { border-top: 3px solid var(--bilanz); }
+.card-accent-green { border-top: 3px solid var(--erfolg); }
+
+/* TYPOGRAPHY */
+.section-title {
+  font-size: 22px; font-weight: 700; letter-spacing: -.03em; margin-bottom: .3rem;
+}
+.section-sub { font-size: 13px; color: var(--ink2); margin-bottom: 1.5rem; }
+h3 { font-size: 15px; font-weight: 700; margin-bottom: .5rem; }
+h4 { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink3); margin-bottom: .4rem; }
+p.desc { font-size: 12px; color: var(--ink2); line-height: 1.65; }
+.sep { height: 1px; background: var(--border); margin: .9rem 0; }
+
+/* FORMULA */
+.formula {
+  background: #F0F4FF; border-left: 3px solid var(--bilanz);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: .6rem 1rem; font-family: 'SF Mono','Fira Code',monospace; font-size: 12px;
+  color: var(--ink); margin: .6rem 0;
+}
+.formula.green { background: var(--erfolg-light); border-left-color: var(--erfolg); }
+.richtwert { font-size: 11px; color: var(--ink3); margin-top: 3px; }
+
+/* BADGES */
+.badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 7px; border-radius:99px; letter-spacing:.03em; }
+.b-gut     { background: var(--gut-bg);      color: var(--gut);     }
+.b-mittel  { background: var(--mittel-bg);   color: var(--mittel);  }
+.b-schlecht{ background: var(--schlecht-bg); color: var(--schlecht);}
+.b-leicht  { background: #ECFDF5; color: #065F46; }
+.b-schwer  { background: #FEF2F2; color: #B91C1C; }
+.b-blue    { background: var(--bilanz-light); color: var(--bilanz); }
+.b-green   { background: var(--erfolg-light); color: var(--erfolg); }
+
+/* KPI GRID */
+.kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:1.25rem; }
+.kpi { background: var(--paper2); border-radius: var(--radius-sm); padding:.85rem 1rem; }
+.kpi-label { font-size:11px; color:var(--ink3); margin-bottom:3px; font-weight:500; }
+.kpi-val { font-size:20px; font-weight:700; letter-spacing:-.02em; }
+
+/* TABLE */
+.kz-table { width:100%; border-collapse:collapse; font-size:12px; }
+.kz-table th { text-align:left; padding:7px 8px; border-bottom:2px solid var(--border); color:var(--ink3); font-weight:700; font-size:10px; text-transform:uppercase; letter-spacing:.06em; }
+.kz-table td { padding:8px 8px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.kz-table tr:last-child td { border-bottom:none; }
+.kz-table td:first-child { font-weight:600; }
+.mono { font-family:'SF Mono','Fira Code',monospace; font-size:11px; color:var(--ink2); }
+
+/* INPUTS */
+input[type=number], input[type=text] {
+  border:1px solid var(--border2); border-radius:var(--radius-sm);
+  padding:6px 10px; font-size:13px; background:var(--paper); color:var(--ink); outline:none;
+  transition: border-color .15s;
+}
+input:focus { border-color: var(--bilanz); }
+.input-label { font-size:11px; color:var(--ink2); margin-bottom:3px; font-weight:600; }
+.input-group { margin-bottom:10px; }
+
+/* RESULT ROWS */
+.result-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); font-size:12px; }
+.result-row:last-child { border-bottom:none; }
+.result-name { color:var(--ink2); font-weight:500; }
+.result-right { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+.result-val { font-weight:700; font-size:14px; }
+
+/* YEAR TABS */
+.yr-tabs { display:flex; gap:6px; margin-bottom:1rem; flex-wrap:wrap; }
+.yr-tab {
+  padding:6px 14px; font-size:12px; font-weight:600; border:1px solid var(--border2);
+  border-radius:var(--radius-sm); cursor:pointer; background:var(--paper); color:var(--ink2);
+  transition:all .12s;
+}
+.yr-tab:hover { background:var(--paper2); }
+.yr-tab.active.bt { background:var(--bilanz); color:#fff; border-color:var(--bilanz); }
+.yr-tab.active.et { background:var(--erfolg); color:#fff; border-color:var(--erfolg); }
+
+/* FILTER / MODE BUTTONS */
+.filter-row { display:flex; gap:5px; flex-wrap:wrap; margin-bottom:.75rem; }
+.fbtn {
+  padding:5px 11px; font-size:11px; font-weight:600; border:1px solid var(--border);
+  border-radius:99px; cursor:pointer; background:var(--paper); color:var(--ink2); transition:all .12s;
+}
+.fbtn:hover { background:var(--paper2); }
+.fbtn.active { background:var(--ink); color:var(--paper); border-color:var(--ink); }
+.mbtn {
+  padding:7px 16px; font-size:12px; font-weight:600; border:1px solid var(--border2);
+  border-radius:var(--radius-sm); cursor:pointer; background:var(--paper); color:var(--ink2); transition:all .12s;
+}
+.mbtn:hover { background:var(--paper2); }
+.mbtn.active.bilanz-mb { background:var(--bilanz); color:#fff; border-color:var(--bilanz); }
+.mbtn.active.erfolg-mb { background:var(--erfolg); color:#fff; border-color:var(--erfolg); }
+
+/* PRIMARY BUTTON */
+.btn-primary {
+  padding:10px 24px; font-size:13px; font-weight:700; border:none;
+  border-radius:var(--radius-sm); cursor:pointer; transition:opacity .15s; letter-spacing:.01em;
+}
+.btn-primary.bilanz-btn { background:var(--bilanz); color:#fff; }
+.btn-primary.erfolg-btn { background:var(--erfolg); color:#fff; }
+.btn-primary:hover { opacity:.85; }
+
+/* PROGRESS */
+.progress-bar { height:4px; background:var(--paper2); border-radius:2px; margin-bottom:1.25rem; overflow:hidden; }
+.progress-fill { height:100%; border-radius:2px; transition:width .35s; }
+.pf-bilanz { background:var(--bilanz); }
+.pf-erfolg { background:var(--erfolg); }
+
+/* QUIZ */
+.quiz-q { font-size:15px; font-weight:600; margin-bottom:1rem; line-height:1.5; letter-spacing:-.01em; }
+.quiz-opts { display:flex; flex-direction:column; gap:7px; margin-bottom:.9rem; }
+.quiz-opt {
+  padding:10px 14px; border:1px solid var(--border2); border-radius:var(--radius-sm);
+  cursor:pointer; font-size:13px; background:var(--paper); color:var(--ink); text-align:left;
+  transition:background .1s, border-color .1s;
+}
+.quiz-opt:hover:not(:disabled) { background:var(--paper2); }
+.quiz-opt.correct { background:#F0FDF4; border-color:#16A34A; color:#15803D; font-weight:600; }
+.quiz-opt.wrong   { background:#FEF2F2; border-color:#DC2626; color:#B91C1C; }
+.quiz-opt:disabled { cursor:default; }
+.qfb { font-size:13px; line-height:1.6; padding:10px 13px; border-radius:var(--radius-sm); display:none; }
+.qfb.show { display:block; }
+.qfb.ok  { background:#F0FDF4; color:#15803D; border:1px solid #BBF7D0; }
+.qfb.nok { background:#FEF2F2; color:#B91C1C; border:1px solid #FCA5A5; }
+.next-btn {
+  margin-top:1rem; padding:8px 20px; border:1px solid var(--border2); border-radius:var(--radius-sm);
+  cursor:pointer; font-size:13px; font-weight:600; background:var(--paper); color:var(--ink);
+  transition:background .12s;
+}
+.next-btn:hover { background:var(--paper2); }
+.q-counter { font-size:11px; color:var(--ink3); margin-bottom:.35rem; font-weight:500; }
+.calc-q-box { background:var(--paper2); border-radius:var(--radius-sm); padding:10px 12px; font-size:12px; margin-bottom:.75rem; line-height:1.8; border-left:3px solid var(--border2); }
+.calc-formula-tag { font-family:'SF Mono','Fira Code',monospace; font-size:11px; background:var(--paper2); border:1px solid var(--border); padding:3px 8px; border-radius:4px; display:inline-block; margin-bottom:.75rem; color:var(--ink2); }
+.answer-input { border:1px solid var(--border2); border-radius:var(--radius-sm); padding:7px 10px; font-size:14px; width:110px; background:var(--paper); color:var(--ink); outline:none; }
+.answer-input:focus { border-color:var(--bilanz); }
+.check-btn { padding:7px 16px; border:1px solid var(--border2); border-radius:var(--radius-sm); cursor:pointer; font-size:12px; font-weight:600; background:var(--paper); color:var(--ink); }
+.check-btn:hover { background:var(--paper2); }
+
+/* SCORE */
+.score-big { font-size:52px; font-weight:800; letter-spacing:-.05em; text-align:center; margin:1rem 0 .25rem; }
+.score-sub { text-align:center; font-size:14px; color:var(--ink2); margin-bottom:1rem; }
+.stat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:.9rem 0; }
+.stat { background:var(--paper2); border-radius:var(--radius-sm); padding:.85rem; text-align:center; }
+.stat-val { font-size:24px; font-weight:800; }
+.stat-lbl { font-size:11px; color:var(--ink2); margin-top:2px; font-weight:500; }
+
+/* KRITIK */
+.strengths ul, .weaknesses ul { font-size:12px; line-height:2; padding-left:1.1rem; }
+.strengths ul li::marker { color: var(--gut); }
+.weaknesses ul li::marker { color: var(--schlecht); }
+
+/* ROI-BAUM */
+.roi-baum { display:flex; align-items:center; gap:0; overflow-x:auto; padding:1rem 0; }
+.roi-col { display:flex; flex-direction:column; align-items:center; gap:8px; min-width:100px; }
+.roi-node {
+  background:var(--paper); border:1.5px solid var(--border2); border-radius:8px;
+  padding:8px 10px; text-align:center; font-size:11px; min-width:90px;
+  box-shadow: var(--shadow);
+}
+.roi-node .lbl { font-size:9px; color:var(--ink3); font-weight:600; text-transform:uppercase; letter-spacing:.06em; margin-bottom:2px; }
+.roi-node .val { font-size:15px; font-weight:800; letter-spacing:-.02em; }
+.roi-node.highlight { border-color:var(--bilanz); background:var(--bilanz-light); }
+.roi-node.highlight .val { color:var(--bilanz); }
+.roi-conn { font-size:18px; color:var(--border2); padding:0 6px; align-self:center; }
+.roi-op { font-size:13px; font-weight:700; color:var(--ink3); text-align:center; margin: 2px 0; }
+
+/* LEVERAGE TABLE */
+.lev-table { width:100%; border-collapse:collapse; font-size:12px; }
+.lev-table th { background:var(--paper2); padding:8px 10px; text-align:left; font-size:11px; font-weight:700; color:var(--ink2); border-bottom:2px solid var(--border); }
+.lev-table td { padding:8px 10px; border-bottom:1px solid var(--border); }
+.lev-table tr:last-child td { border-bottom:none; font-weight:700; }
+.lev-table .highlight-cell { color:var(--erfolg); font-weight:800; }
+
+/* RESPONSIVE */
+@media(max-width:600px){
+  .main { padding:1rem; }
+  .card-grid { grid-template-columns:1fr; }
+  .topbar { padding:0 1rem; }
+  .score-big { font-size:40px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════
+     LANDING PAGE
+══════════════════════════════════════════════════ -->
+<div id="landing">
+  <div class="landing-logo">Eyelook AG · Abitur­vorbereitung BWL</div>
+  <h1 class="landing-title">Bilanz- &amp; <span>Erfolgs­analyse</span></h1>
+  <p class="landing-sub">Wähle ein Modul zum Lernen. Theorie, Rechner, Eyelook-Daten und Quiz — alles drin.</p>
+  <div class="module-cards">
+    <button class="module-card bilanz" onclick="openModule('bilanz')">
+      <div class="mc-icon">📊</div>
+      <div class="mc-title">Bilanzkennzahlen</div>
+      <p class="mc-desc">Vermögensstruktur, Kapitalstruktur, Anlagenfinanzierung und Liquidität — alle Formeln, Richtwerte und Eyelook-Daten.</p>
+      <div class="mc-topics">
+        <span class="mc-tag">Vermögensstruktur</span>
+        <span class="mc-tag">Kapitalstruktur</span>
+        <span class="mc-tag">Anlagenfinanzierung</span>
+        <span class="mc-tag">Liquidität</span>
+        <span class="mc-tag">Quiz</span>
+      </div>
+      <span class="mc-arrow">→</span>
+    </button>
+    <button class="module-card erfolg" onclick="openModule('erfolg')">
+      <div class="mc-icon">📈</div>
+      <div class="mc-title">Erfolgskennzahlen</div>
+      <p class="mc-desc">Rentabilitäten, ROI, EBIT, Leverage-Effekt und Cashflow — Theorie und alle Eyelook-Zahlen GJ02–GJ04.</p>
+      <div class="mc-topics">
+        <span class="mc-tag">EK- & GK-Rentabilität</span>
+        <span class="mc-tag">ROI-Baum</span>
+        <span class="mc-tag">EBIT</span>
+        <span class="mc-tag">Leverage</span>
+        <span class="mc-tag">Cashflow</span>
+        <span class="mc-tag">Quiz</span>
+      </div>
+      <span class="mc-arrow">→</span>
+    </button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     APP SHELL
+══════════════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <button class="tb-back" onclick="goHome()">← Startseite</button>
+    <div class="tb-sep"></div>
+    <span class="tb-module" id="tb-module-label"></span>
+    <div style="flex:1"></div>
+    <span style="font-size:11px;color:var(--ink3);">Eyelook AG</span>
+  </div>
+
+  <!-- NAVTABS -->
+  <nav class="navtabs" id="navtabs"></nav>
+
+  <!-- CONTENT -->
+  <div class="main" id="main-content"></div>
+
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   BILANZ DATA
+═══════════════════════════════════════════════════════ */
+const eyeData={
+  2:{av:112610,vr:12805,fo:80087,fm:6900,ek:129142,lfl:15742,kfk:67518,gv:212402,gk:212402},
+  3:{av:114315,vr:15390,fo:81673,fm:5850,ek:151824,lfl:16918,kfk:48486,gv:217228,gk:217228},
+  4:{av:103690,vr:19258,fo:80958,fm:5296,ek:134016,lfl:23456,kfk:51730,gv:209202,gk:209202}
+};
+const kzKeys=['anlagenintensitaet','umlaufintensitaet','ekquote','fkquote','verschuldung','adg1','adg2','liq1','liq2','liq3'];
+const kzLabels={anlagenintensitaet:'Anlagenintensität',umlaufintensitaet:'Umlaufintensität',ekquote:'EK-Quote',fkquote:'FK-Quote',verschuldung:'Verschuldungsgrad',adg1:'Anlagendeckungsgrad I',adg2:'Anlagendeckungsgrad II',liq1:'Liquidität 1. Grades',liq2:'Liquidität 2. Grades',liq3:'Liquidität 3. Grades'};
+const kzFormeln={anlagenintensitaet:'AV/GV×100',umlaufintensitaet:'UV/GV×100',ekquote:'EK/GK×100',fkquote:'FK/GK×100',verschuldung:'FK/EK×100',adg1:'EK/AV×100',adg2:'(EK+lFK)/AV×100',liq1:'FM/kFK×100',liq2:'(FM+Ford)/kFK×100',liq3:'(FM+Ford+Vorr)/kFK×100'};
+const kzRichtwerte={anlagenintensitaet:'branchenabh.',umlaufintensitaet:'branchenabh.',ekquote:'≥50%',fkquote:'≤50%',verschuldung:'≤200%',adg1:'>90%',adg2:'>150%',liq1:'≈20%',liq2:'≥100%',liq3:'≥200%'};
+function calcKZ(d){const uv=d.vr+d.fo+d.fm,fk=d.lfl+d.kfk;return{anlagenintensitaet:d.av/d.gv*100,umlaufintensitaet:uv/d.gv*100,ekquote:d.ek/d.gk*100,fkquote:fk/d.gk*100,verschuldung:fk/d.ek*100,adg1:d.ek/d.av*100,adg2:(d.ek+d.lfl)/d.av*100,liq1:d.fm/d.kfk*100,liq2:(d.fm+d.fo)/d.kfk*100,liq3:(d.fm+d.fo+d.vr)/d.kfk*100,uv,fk};}
+function bew(k,v){const r={anlagenintensitaet:()=>'',umlaufintensitaet:()=>'',ekquote:v=>v>50?'gut':v>30?'mittel':'schlecht',fkquote:v=>v<50?'gut':v<70?'mittel':'schlecht',verschuldung:v=>v<100?'gut':v<200?'mittel':'schlecht',adg1:v=>v>90?'gut':v>60?'mittel':'schlecht',adg2:v=>v>150?'gut':v>110?'mittel':'schlecht',liq1:v=>v>=20?'gut':v>=10?'mittel':'schlecht',liq2:v=>v>=100?'gut':v>=80?'mittel':'schlecht',liq3:v=>v>=200?'gut':v>=150?'mittel':'schlecht'};return r[k]?r[k](v):'';}
+function bc(b){return b==='gut'?'b-gut':b==='mittel'?'b-mittel':b==='schlecht'?'b-schlecht':'';}
+
+/* ═══════════════════════════════════════════════════════
+   ERFOLG DATA
+═══════════════════════════════════════════════════════ */
+const erfolgData={
+  2:{ju:10980,ek:129142,gk:212402,fkZinsen:2600,umsatz:122355,zinsertrag:6800,steuern:6202,av:112610,uv:99792},
+  3:{ju:13282,ek:151824,gk:217228,fkZinsen:1520,umsatz:132150,zinsertrag:7130,steuern:6609,av:114315,uv:102913},
+  4:{ju:-15608,ek:134016,gk:209202,fkZinsen:1654,umsatz:124335,zinsertrag:3744,steuern:465,av:103690,uv:105512}
+};
+function calcErfolg(d){
+  const ekRent=d.ju/d.ek*100;
+  const gkRent=(d.ju+d.fkZinsen)/d.gk*100;
+  const umsRent=d.ju/d.umsatz*100;
+  const kapUmschlag=d.umsatz/d.gk;
+  const roi=umsRent*kapUmschlag;
+  const ebit=d.ju+d.fkZinsen-d.zinsertrag+d.steuern;
+  return{ekRent,gkRent,umsRent,kapUmschlag,roi,ebit};
+}
+function bewErfolg(k,v){
+  if(k==='ekRent') return v>10?'gut':v>5?'mittel':'schlecht';
+  if(k==='gkRent') return v>8?'gut':v>4?'mittel':'schlecht';
+  if(k==='umsRent') return v>8?'gut':v>4?'mittel':'schlecht';
+  return '';
+}
+
+/* ═══════════════════════════════════════════════════════
+   QUIZ DATA — BILANZ
+═══════════════════════════════════════════════════════ */
+const mcQB=[
+  {t:'vermoegen',d:'leicht',q:'Was zeigt die Anlagenintensität?',o:['Anteil des UV am GV','Anteil des AV am GV','Verhältnis EK zu FK','Kurzfristige Zahlungsfähigkeit'],a:1,e:'Anlagenintensität = AV / GV × 100.'},
+  {t:'vermoegen',d:'leicht',q:'Welche Bilanzseite betrifft die Vermögensstrukturanalyse?',o:['Nur Passivseite','Nur Aktivseite','Beide Seiten','Weder noch'],a:1,e:'Nur die Aktivseite (AV und UV).'},
+  {t:'vermoegen',d:'mittel',q:'Was bedeutet eine hohe Umlaufintensität?',o:['Hohe Kapitalbindung im AV','Geringe Flexibilität','Höhere Anpassungsfähigkeit, aber ggf. Lagerstau oder hohe Forderungen','Gute Kreditwürdigkeit'],a:2,e:'Hohe Umlaufintensität = flexibler, aber Probleme möglich (Lagerstau, hohe Forderungen).'},
+  {t:'vermoegen',d:'schwer',q:'Welche Branche hat typischerweise sehr hohe Anlagenintensität?',o:['Handel','Beratung','Energie und Chemie','IT-Dienstleistung'],a:2,e:'Energie und Chemie binden sehr viel Kapital in Anlagen.'},
+  {t:'kapital',d:'leicht',q:'Formel für die EK-Quote?',o:['FK / GK × 100','EK / GK × 100','EK / AV × 100','AV / GV × 100'],a:1,e:'EK / GK × 100.'},
+  {t:'kapital',d:'leicht',q:'Richtwert FK-Quote?',o:['≤ 100 %','≤ 50 %','≥ 50 %','= 0 %'],a:1,e:'FK-Quote ≤ 50 %.'},
+  {t:'kapital',d:'mittel',q:'Was signalisiert eine niedrige EK-Quote?',o:['Hohe Rentabilität','Überschuldungsrisiko und Abhängigkeit von Kreditgebern','Gute Liquidität','Hohe Anlagenintensität'],a:1,e:'Steigende Abhängigkeit von Kreditgebern und Überschuldungsrisiko.'},
+  {t:'kapital',d:'mittel',q:'Was bedeutet ein Verschuldungsgrad von 200 %?',o:['EK = FK','FK = 2 × EK','EK = 2 × FK','FK = 0'],a:1,e:'FK = 2 × EK. Das ist der maximale Richtwert.'},
+  {t:'kapital',d:'schwer',q:'Warum werden Kapitalstrukturkennzahlen kritisiert?',o:['Zu aufwendig','Stille Rücklagen und bilanzneutrale Finanzierungsformen fehlen','Nur für Großunternehmen','Beziehen sich auf Aktivseite'],a:1,e:'Stille Rücklagen und z.B. Leasing werden nicht erfasst.'},
+  {t:'anlage',d:'leicht',q:'Was prüft der Anlagendeckungsgrad?',o:['Rentabilität','Fristenkongruenz (goldene Bilanzregel)','Kurzfristige Zahlungsfähigkeit','Gewinn'],a:1,e:'ADG prüft Fristenkongruenz: langfristiges Vermögen soll langfristig finanziert sein.'},
+  {t:'anlage',d:'leicht',q:'Formel ADG I?',o:['(EK + langfr.FK) / AV × 100','EK / AV × 100','EK / GK × 100','AV / EK × 100'],a:1,e:'EK / AV × 100.'},
+  {t:'anlage',d:'mittel',q:'Richtwert ADG II (gut, produzierendes Gewerbe)?',o:['> 100 %','> 110 %','> 150 %','> 200 %'],a:2,e:'ADG II > 150 %. Langfristiges Kapital soll auch den eisernen Bestand des UV decken.'},
+  {t:'anlage',d:'schwer',q:'Kritikpunkt am ADG II?',o:['Zu einfach','Unterstellt Kapitalfreisetzung aus Vermögensnutzung — nicht immer realistisch','Kein FK berücksichtigt','Bezieht sich auf Passivseite'],a:1,e:'Die angenommene Kapitalfreisetzung ist nicht immer in voller Höhe gewährleistet.'},
+  {t:'liquiditaet',d:'leicht',q:'Was misst Liquidität 1. Grades?',o:['Zahlungsfähigkeit übermorgen','Zahlungsfähigkeit morgen','Zahlungsfähigkeit jetzt','In einem Jahr'],a:2,e:'Barliquidität = Zahlungsfähigkeit jetzt.'},
+  {t:'liquiditaet',d:'leicht',q:'Formel Liquidität 2. Grades?',o:['FM / kurzfr.FK × 100','(FM + Vorräte) / kurzfr.FK × 100','(FM + kurzfr.Ford.) / kurzfr.FK × 100','UV / kurzfr.FK × 100'],a:2,e:'(FM + kurzfr. Forderungen) / kurzfr. FK × 100.'},
+  {t:'liquiditaet',d:'mittel',q:'Warum ist ein zu hoher Wert bei Liq. 1 problematisch?',o:['FK steigt','Kapitalrentabilität sinkt','EK wird zu niedrig','AV sinkt'],a:1,e:'Zu viel in flüssigen Mitteln = kaum Rendite → Kapitalrentabilität sinkt.'},
+  {t:'liquiditaet',d:'mittel',q:'Richtwert Liquidität 3. Grades?',o:['≥ 20 %','≥ 100 %','≥ 150 %','≥ 200 %'],a:3,e:'≥ 200 % — UV soll doppeltes kurzfristiges FK abdecken.'},
+  {t:'liquiditaet',d:'schwer',q:'Was versteht man unter einzugsbedingter Liquidität?',o:['Liq. 1','Liq. 2','Liq. 3','Keine'],a:1,e:'Liq. 2. Grades — wenn offene Forderungen eingehen (eingezogen werden).'},
+  {t:'eyelook',d:'leicht',q:'EK-Quote der Eyelook AG im GJ02?',o:['39,2 %','60,8 %','69,9 %','64,1 %'],a:1,e:'129.142 / 212.402 × 100 = 60,8 %.'},
+  {t:'eyelook',d:'mittel',q:'Warum stieg die EK-Quote von GJ02 auf GJ03?',o:['Hohe Gewinne','Kapitalerhöhung gegen Einlagen','FK stark abgebaut','Bilanzsumme sank'],a:1,e:'Kapitalerhöhung gegen Einlagen → EK stieg auf 69,9 %.'},
+  {t:'eyelook',d:'mittel',q:'Wie war die Liquidität 1. Grades der Eyelook AG?',o:['Immer gut (>20%)','Schwankend um 20%','Dauerhaft unter 20% — schlecht','Sehr gut (>50%)'],a:2,e:'GJ02: 10,2 %, GJ03: 12,1 %, GJ04: 10,2 % — dauerhaft unter 20 %.'},
+  {t:'eyelook',d:'schwer',q:'Warum sank die EK-Quote von GJ03 auf GJ04?',o:['Neue FK-Aufnahme','Verlustausgleich — Gewinnrücklagen aufgelöst','Kapitalherabsetzung','GV sank'],a:1,e:'Im GJ04 musste ein Verlust ausgeglichen werden → Gewinnrücklagen aufgelöst → EK sank.'},
+];
+const calcQB=[
+  {t:'kapital',d:'leicht',q:'Berechne die EK-Quote:',b:'EK = 80.000 €, GK = 200.000 €',f:'EK / GK × 100',a:40,tol:.5,u:'%',e:'80.000 / 200.000 × 100 = 40,0 %'},
+  {t:'kapital',d:'leicht',q:'Berechne den Verschuldungsgrad:',b:'FK = 60.000 €, EK = 120.000 €',f:'FK / EK × 100',a:50,tol:.5,u:'%',e:'60.000 / 120.000 × 100 = 50,0 %'},
+  {t:'vermoegen',d:'leicht',q:'Berechne die Anlagenintensität:',b:'AV = 150.000 €, GV = 250.000 €',f:'AV / GV × 100',a:60,tol:.5,u:'%',e:'150.000 / 250.000 × 100 = 60,0 %'},
+  {t:'liquiditaet',d:'leicht',q:'Berechne Liquidität 1. Grades:',b:'FM = 15.000 €, kurzfr. FK = 75.000 €',f:'FM / kurzfr.FK × 100',a:20,tol:.5,u:'%',e:'15.000 / 75.000 × 100 = 20,0 %'},
+  {t:'anlage',d:'mittel',q:'Berechne ADG I:',b:'EK = 130.000 €, AV = 110.000 €',f:'EK / AV × 100',a:118.18,tol:1,u:'%',e:'130.000 / 110.000 × 100 = 118,2 %'},
+  {t:'anlage',d:'mittel',q:'Berechne ADG II:',b:'EK = 130.000 €, langfr.FK = 20.000 €, AV = 110.000 €',f:'(EK+langfr.FK)/AV×100',a:136.36,tol:1,u:'%',e:'(130.000+20.000)/110.000×100 = 136,4 %'},
+  {t:'liquiditaet',d:'mittel',q:'Berechne Liquidität 2. Grades:',b:'FM = 8.000 €, Ford. = 52.000 €, kurzfr. FK = 40.000 €',f:'(FM+Ford)/kFK×100',a:150,tol:.5,u:'%',e:'(8.000+52.000)/40.000×100 = 150,0 %'},
+  {t:'eyelook',d:'mittel',q:'Eyelook GJ03 — EK-Quote:',b:'EK = 151.824 Tsd.€, GK = 217.228 Tsd.€',f:'EK/GK×100',a:69.9,tol:.3,u:'%',e:'151.824/217.228×100 = 69,9 %'},
+  {t:'eyelook',d:'schwer',q:'Eyelook GJ04 — Liquidität 3. Grades:',b:'FM=5.296, Ford.=80.958, Vorr.=19.258, kFK=51.730 (Tsd.€)',f:'(FM+Ford+Vorr)/kFK×100',a:204.0,tol:.5,u:'%',e:'(5.296+80.958+19.258)/51.730×100 = 204,0 %'},
+  {t:'liquiditaet',d:'schwer',q:'Berechne Liquidität 3. Grades:',b:'FM=12.000, Ford.=88.000, Vorr.=45.000, kFK=95.000 €',f:'(FM+Ford+Vorr)/kFK×100',a:152.63,tol:1,u:'%',e:'(12.000+88.000+45.000)/95.000×100 = 152,6 %'},
+];
+
+/* ═══════════════════════════════════════════════════════
+   QUIZ DATA — ERFOLG
+═══════════════════════════════════════════════════════ */
+const mcQE=[
+  {t:'rentabilitaet',d:'leicht',q:'Formel für die EK-Rentabilität?',o:['(JÜ + FK-Zinsen) / GK × 100','JÜ / EK × 100','JÜ / Umsatz × 100','EBIT / GK × 100'],a:1,e:'EK-Rentabilität = JÜ / EK × 100. Sie zeigt, wie rentabel das Eigenkapital eingesetzt wird.'},
+  {t:'rentabilitaet',d:'leicht',q:'Richtwert für die EK-Rentabilität?',o:['> 5 %','> 8 %','> 10 %','> 15 %'],a:2,e:'EK-Rentabilität sollte > 10 % betragen.'},
+  {t:'rentabilitaet',d:'leicht',q:'Formel für die GK-Rentabilität?',o:['JÜ / GK × 100','(JÜ + FK-Zinsen) / GK × 100','JÜ / EK × 100','Umsatz / GK × 100'],a:1,e:'(JÜ + FK-Zinsen) / GK × 100 — FK-Zinsen werden addiert, da sie Erträge vor Fremdkapitalvergütung zeigen.'},
+  {t:'rentabilitaet',d:'mittel',q:'Warum werden bei der GK-Rentabilität die FK-Zinsen addiert?',o:['Um den EBIT zu berechnen','Weil FK-Zinsen Kosten der Finanzierung sind, nicht der Leistung','Damit der Wert steigt','Das ist ein Rechenfehler'],a:1,e:'FK-Zinsen sind Vergütung für das FK — sie müssen addiert werden, damit die Rentabilität des gesamten Kapitals unabhängig von der Finanzierungsstruktur verglichen werden kann.'},
+  {t:'rentabilitaet',d:'mittel',q:'Was sagt die Umsatzrentabilität aus?',o:['Wie rentabel das EK eingesetzt wird','Wie viel Gewinn je Euro Umsatz erzielt wird','Wie rentabel das GK eingesetzt wird','Wie oft das Kapital umgeschlagen wird'],a:1,e:'JÜ / Umsatz × 100 — Gewinn je Euro Umsatz.'},
+  {t:'rentabilitaet',d:'schwer',q:'Eyelook GJ04: EK-Rentabilität ist -11,6 %. Was bedeutet das?',o:['Sehr gute Eigenkapitalrendite','Eigenkapital wurde vernichtet — Jahresverlust','Fremdkapital überwiegt','Die EK-Quote ist zu hoch'],a:1,e:'Ein negativer JÜ (Verlust von -15.608 Tsd. €) bedeutet, dass Eigenkapital vernichtet wurde. -11,6 % ist äußerst schlecht.'},
+  {t:'roi',d:'leicht',q:'Formel für den ROI des Gesamtkapitals?',o:['JÜ / GK × 100','Umsatzrentabilität × Kapitalumschlagshäufigkeit','EK-Rentabilität + GK-Rentabilität','EBIT / Umsatz × 100'],a:1,e:'ROI = Umsatzrentabilität × Kapitalumschlagshäufigkeit. Das ist die DuPont-Zerlegung.'},
+  {t:'roi',d:'leicht',q:'Wie berechnet sich die Kapitalumschlagshäufigkeit?',o:['GK / Umsatz','Umsatz / GK','JÜ / Umsatz × 100','EK / GK × 100'],a:1,e:'Kapitalumschlagshäufigkeit = Umsatz / GK. Sie zeigt, wie oft das Kapital im Jahr umgeschlagen wird.'},
+  {t:'roi',d:'mittel',q:'Welche Maßnahme steigert den ROI am stärksten laut Eyelook GJ02?',o:['Abbau von Lagervorräten','Senkung der fixen Kosten','Senkung der Herstellkosten (variable Kosten)','Verkauf nicht notwendigen AV'],a:2,e:'Maßnahme 1 (Senkung der Herstellkosten) brachte einen ROI von 6,35 % — den höchsten Zuwachs.'},
+  {t:'roi',d:'schwer',q:'Warum zerlegt der ROI-Baum den ROI in Umsatzrendite und Kapitalumschlag?',o:['Weil EBIT und JÜ identisch sind','Um gezielte Ansatzpunkte für Verbesserungsmaßnahmen zu identifizieren','Weil der ROI sonst nicht berechenbar wäre','Um den Leverage-Effekt zu zeigen'],a:1,e:'Der ROI-Baum zeigt, wo Hebelwirkung möglich ist: Umsatzrendite (Kostenseite) oder Kapitalumschlag (Vermögensseite).'},
+  {t:'ebit',d:'leicht',q:'Wofür steht EBIT?',o:['Earnings Before Interest and Taxes','Eigenkapital Before Interest and Taxes','Earnings Between Investments and Taxes','Ertrag Basis Investition Tilgung'],a:0,e:'Earnings Before Interest and Taxes — Ergebnis vor Zinsen und Steuern.'},
+  {t:'ebit',d:'leicht',q:'Wofür wird der EBIT verwendet?',o:['Für die Berechnung der Liquidität','Für den internationalen Vergleich, da er finanzierungsneutral ist','Für die Berechnung der EK-Quote','Für den Leverage-Effekt'],a:1,e:'EBIT ist finanzierungs- und steuerneutral und eignet sich daher für den internationalen Vergleich.'},
+  {t:'ebit',d:'mittel',q:'Wie berechnet sich der EBIT?',o:['JÜ + FK-Zinsen','JÜ + Zinsaufwand - Zinsertrag + Steuern','JÜ - Steuern','Umsatz - variable Kosten'],a:1,e:'EBIT = JÜ + Zinsaufwand - Zinsertrag + Steuern.'},
+  {t:'leverage',d:'leicht',q:'Was versteht man unter dem Leverage-Effekt?',o:['Senkung der Fremdkapitalzinsen','Hebelwirkung des Verschuldungsgrads auf die EK-Rentabilität','Erhöhung des Umsatzes','Abbau von Lagervorräten'],a:1,e:'Der Leverage-Effekt beschreibt, wie zusätzliches FK die EK-Rentabilität steigern kann — wenn der FK-Zinssatz unter der GK-Rentabilität liegt.'},
+  {t:'leverage',d:'mittel',q:'Wann tritt ein positiver Leverage-Effekt auf?',o:['Wenn EK-Rentabilität > FK-Zinssatz','Wenn FK-Zinssatz < GK-Rentabilität','Wenn der Verschuldungsgrad 200% übersteigt','Wenn der Umsatz steigt'],a:1,e:'Positiver Leverage: FK-Zinssatz < GK-Rentabilität. Dann steigert mehr FK die EK-Rentabilität.'},
+  {t:'leverage',d:'schwer',q:'Welchen Zielkonflikt erzeugt der Leverage-Effekt?',o:['Rentabilität vs. Umsatz','Maximale EK-Rentabilität (mehr FK) vs. Stabilität und Liquidität (weniger FK)','Hohe EK-Quote vs. hohe GK-Rentabilität','EBIT vs. Cashflow'],a:1,e:'Mehr FK steigert die EK-Rentabilität (positiver Leverage), erhöht aber auch das Risiko und gefährdet Stabilität und Liquidität.'},
+  {t:'cashflow',d:'leicht',q:'Was zeigt der Cashflow?',o:['Den Jahresüberschuss','Den Finanzüberschuss einer Periode — die tatsächliche Ertragskraft','Die EK-Rentabilität','Den EBIT'],a:1,e:'Cashflow = Finanzüberschuss einer Periode. Er zeigt die wirkliche Ertragskraft, weil Abschreibungen zurückaddiert werden.'},
+  {t:'cashflow',d:'mittel',q:'Wie berechnet sich der Cashflow nach der Praktikerformel?',o:['JÜ + FK-Zinsen','JÜ + Abschreibungen - Zuschreibungen ± Rückstellungsveränderungen','JÜ + Zinsaufwand - Zinsertrag + Steuern','EBIT - Steuern'],a:1,e:'Praktikerformel: JÜ + Abschreibungen - Zuschreibungen + Erhöhungen langfr. Rückstellungen - Verminderungen langfr. Rückstellungen.'},
+  {t:'cashflow',d:'mittel',q:'Warum kann der Cashflow größer sein als der Jahresüberschuss?',o:['Weil Steuern abgezogen werden','Weil Abschreibungen nicht ausgabewirksam sind und wieder addiert werden','Weil FK-Zinsen addiert werden','Weil Umsatzerlöse einbezogen werden'],a:1,e:'Abschreibungen sind Aufwand, aber keine Ausgabe. Beim indirekten Verfahren werden sie addiert — daher ist der Cashflow oft größer als der JÜ.'},
+  {t:'eyelook',d:'leicht',q:'Wie war die Umsatzrentabilität der Eyelook AG im GJ02?',o:['6,4 %','8,5 %','9,0 %','5,2 %'],a:2,e:'10.980 / 122.355 × 100 = 9,0 % — gut (> 8 %).'},
+  {t:'eyelook',d:'mittel',q:'Wie war die EK-Rentabilität der Eyelook AG im GJ04?',o:['8,8 %','-11,6 %','10,0 %','-6,7 %'],a:1,e:'-15.608 / 134.016 × 100 = -11,6 % — äußerst schlecht (Verlustjahr).'},
+  {t:'eyelook',d:'schwer',q:'Welche Eyelook-Kennzahl war in GJ02 gut, in GJ04 äußerst schlecht?',o:['EK-Quote','GK-Rentabilität','Anlagendeckungsgrad II','Liquidität 1. Grades'],a:1,e:'GK-Rentabilität: GJ02 6,4 % (mittel), GJ03 6,8 % (mittel), GJ04 -6,7 % (äußerst schlecht). Alle drei sanken relativ zu Richtwert 8 % — und im GJ04 ins Negative.'},
+];
+const calcQE=[
+  {t:'rentabilitaet',d:'leicht',q:'Berechne die EK-Rentabilität:',b:'JÜ = 25.000 €, EK = 200.000 €',f:'JÜ / EK × 100',a:12.5,tol:.3,u:'%',e:'25.000 / 200.000 × 100 = 12,5 %'},
+  {t:'rentabilitaet',d:'leicht',q:'Berechne die Umsatzrentabilität:',b:'JÜ = 15.000 €, Umsatz = 150.000 €',f:'JÜ / Umsatz × 100',a:10,tol:.3,u:'%',e:'15.000 / 150.000 × 100 = 10,0 %'},
+  {t:'rentabilitaet',d:'mittel',q:'Berechne die GK-Rentabilität:',b:'JÜ = 10.000 €, FK-Zinsen = 3.000 €, GK = 200.000 €',f:'(JÜ + FK-Zinsen) / GK × 100',a:6.5,tol:.3,u:'%',e:'(10.000 + 3.000) / 200.000 × 100 = 6,5 %'},
+  {t:'roi',d:'mittel',q:'Berechne den ROI:',b:'Umsatzrentabilität = 8 %, Umsatz = 100.000 €, GK = 200.000 €',f:'Umsatzrentabilität × (Umsatz/GK)',a:4,tol:.2,u:'%',e:'8 % × (100.000/200.000) = 8 % × 0,5 = 4,0 %'},
+  {t:'ebit',d:'mittel',q:'Berechne den EBIT (Eyelook GJ02):',b:'JÜ=10.980, Zinsaufwand=2.600, Zinsertrag=6.800, Steuern=6.202 (Tsd.€)',f:'JÜ + Zinsaufw. - Zinsertrag + Steuern',a:12982,tol:10,u:'Tsd.€',e:'10.980 + 2.600 - 6.800 + 6.202 = 12.982 Tsd. €'},
+  {t:'eyelook',d:'mittel',q:'Eyelook GJ02 — EK-Rentabilität:',b:'JÜ = 10.980 Tsd.€, EK = 129.142 Tsd.€',f:'JÜ / EK × 100',a:8.5,tol:.2,u:'%',e:'10.980 / 129.142 × 100 = 8,5 %'},
+  {t:'eyelook',d:'mittel',q:'Eyelook GJ03 — Umsatzrentabilität:',b:'JÜ = 13.282 Tsd.€, Umsatz = 132.150 Tsd.€',f:'JÜ / Umsatz × 100',a:10.1,tol:.2,u:'%',e:'13.282 / 132.150 × 100 = 10,1 %'},
+  {t:'eyelook',d:'schwer',q:'Eyelook GJ04 — ROI:',b:'Umsatzrentabilität = -12,6 %, Umsatz = 124.335 Tsd.€, GK = 209.202 Tsd.€',f:'Umsatzrendite × (Umsatz/GK)',a:-7.5,tol:.3,u:'%',e:'-12,6 % × (124.335/209.202) = -7,5 %'},
+  {t:'leverage',d:'schwer',q:'Berechne EK-Rentabilität mit Leverage-Formel:',b:'r (GK-Rentabilität) = 15 %, i (FK-Zinssatz) = 9 %, FK = 600.000 €, EK = 400.000 €',f:'r + (r - i) × FK/EK',a:24,tol:.3,u:'%',e:'15 % + (15 % - 9 %) × 600.000/400.000 = 15 % + 6 % × 1,5 = 24 %'},
+  {t:'cashflow',d:'mittel',q:'Berechne den Cashflow (Praktikerformel):',b:'JÜ = 200.000 €, Abschreibungen = 80.000 €, Zuschreibungen = 10.000 €',f:'JÜ + Abschr. - Zuschreib.',a:270000,tol:100,u:'€',e:'200.000 + 80.000 - 10.000 = 270.000 €'},
+];
+
+/* ═══════════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════════ */
+let currentModule='bilanz';
+let quizMode='mc', quizFilter='all', quizDiff='all';
+let aqList=[], qIdx=0, score=0, answered=false, wrongQ=[];
+let trendCI=null, erfolgCI=null;
+const themeL={vermoegen:'Vermögensstruktur',kapital:'Kapitalstruktur',anlage:'Anlagenfinanzierung',liquiditaet:'Liquidität',eyelook:'Eyelook AG',rentabilitaet:'Rentabilität',roi:'ROI',ebit:'EBIT',leverage:'Leverage-Effekt',cashflow:'Cashflow'};
+
+/* ═══════════════════════════════════════════════════════
+   NAVIGATION
+═══════════════════════════════════════════════════════ */
+function openModule(mod){
+  currentModule=mod;
+  document.getElementById('landing').style.display='none';
+  const app=document.getElementById('app');
+  app.style.display='flex';
+  const lbl=document.getElementById('tb-module-label');
+  lbl.textContent=mod==='bilanz'?'Bilanzkennzahlen':'Erfolgskennzahlen';
+  lbl.className='tb-module '+mod;
+  buildNav(mod);
+  showTab(mod==='bilanz'?'b-theorie':'e-theorie');
+}
+function goHome(){
+  document.getElementById('landing').style.display='flex';
+  document.getElementById('app').style.display='none';
+  if(trendCI){trendCI.destroy();trendCI=null;}
+  if(erfolgCI){erfolgCI.destroy();erfolgCI=null;}
+}
+function buildNav(mod){
+  const nav=document.getElementById('navtabs');
+  if(mod==='bilanz'){
+    nav.innerHTML=`
+      <button class="ntab bilanz-tab active" onclick="showTab('b-theorie',this)">Theorie</button>
+      <button class="ntab bilanz-tab" onclick="showTab('b-rechner',this)">Rechner</button>
+      <button class="ntab bilanz-tab" onclick="showTab('b-eyelook',this)">Eyelook AG</button>
+      <button class="ntab bilanz-tab" onclick="showTab('b-quiz',this)">Quiz</button>
+      <button class="ntab bilanz-tab" onclick="showTab('b-kritik',this)">Kritische Analyse</button>`;
+  } else {
+    nav.innerHTML=`
+      <button class="ntab erfolg-tab active" onclick="showTab('e-theorie',this)">Theorie</button>
+      <button class="ntab erfolg-tab" onclick="showTab('e-eyelook',this)">Eyelook AG</button>
+      <button class="ntab erfolg-tab" onclick="showTab('e-roibaum',this)">ROI-Baum</button>
+      <button class="ntab erfolg-tab" onclick="showTab('e-leverage',this)">Leverage-Effekt</button>
+      <button class="ntab erfolg-tab" onclick="showTab('e-cashflow',this)">Cashflow</button>
+      <button class="ntab erfolg-tab" onclick="showTab('e-quiz',this)">Quiz</button>`;
+  }
+  renderContent(mod);
+}
+function showTab(id,btn){
+  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById(id);
+  if(el) el.classList.add('active');
+  if(btn){
+    document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  if(id==='b-rechner') calcAll();
+  if(id==='b-eyelook'){const t=document.querySelector('.yr-tab.bt');showBYear(2,t);}
+  if(id==='e-eyelook') renderErfolgChart();
+}
+
+/* ═══════════════════════════════════════════════════════
+   RENDER CONTENT
+═══════════════════════════════════════════════════════ */
+function renderContent(mod){
+  const mc=document.getElementById('main-content');
+  if(mod==='bilanz') mc.innerHTML=bilanzHTML();
+  else mc.innerHTML=erfolgHTML();
+  calcAll();
+}
+
+/* ══ BILANZ HTML ══ */
+function bilanzHTML(){return`
+<div id="b-theorie" class="sec active">
+  <div class="section-title">Bilanzkennzahlen — Theorie</div>
+  <p class="section-sub">Alle vier Bereiche mit Formeln, Richtwerten und Erklärungen.</p>
+  <div class="card-grid">
+    <div class="card card-accent-blue">
+      <h3 style="color:var(--bilanz)">Vermögensstruktur <span style="font-size:11px;font-weight:400;color:var(--ink3);">Aktivseite</span></h3>
+      <p class="desc">Analysiert Art und Zusammensetzung des Vermögens — Investitionsanalyse.</p>
+      <div class="sep"></div>
+      <h4>Anlagenintensität</h4>
+      <div class="formula">AV / Gesamtvermögen × 100 %</div>
+      <p class="desc">Hohe Anlagenintensität = geringere Flexibilität, höhere Kapitalbindung.</p>
+      <div class="richtwert">⚖ stark branchenabhängig</div>
+      <div class="sep"></div>
+      <h4>Umlaufintensität</h4>
+      <div class="formula">UV / Gesamtvermögen × 100 %</div>
+      <p class="desc">Hohe Umlaufintensität = bessere Anpassungsfähigkeit, aber ggf. Lagerstau oder hohe Forderungen.</p>
+      <div class="richtwert">⚖ stark branchenabhängig</div>
+    </div>
+    <div class="card card-accent-blue">
+      <h3 style="color:var(--bilanz)">Kapitalstruktur <span style="font-size:11px;font-weight:400;color:var(--ink3);">Passivseite</span></h3>
+      <p class="desc">Finanzierungsanalyse — Herkunft, Art, Sicherheit und Fristigkeit des Kapitals.</p>
+      <div class="sep"></div>
+      <h4>EK-Quote</h4>
+      <div class="formula">EK / Gesamtkapital × 100 %</div>
+      <p class="desc">Finanzielle Unabhängigkeit. Niedrig = Überschuldungsrisiko.</p>
+      <div class="richtwert">⚖ ≥ 50 % (branchenabhängig)</div>
+      <div class="sep"></div>
+      <h4>FK-Quote</h4>
+      <div class="formula">FK / Gesamtkapital × 100 %</div>
+      <p class="desc">Abhängigkeit von Kreditgebern. Hoch = schlechtere Bonität.</p>
+      <div class="richtwert">⚖ ≤ 50 %</div>
+      <div class="sep"></div>
+      <h4>Verschuldungsgrad</h4>
+      <div class="formula">FK / EK × 100 %</div>
+      <p class="desc">Je mehr EK relativ zu FK, desto krisensicherer.</p>
+      <div class="richtwert">⚖ ≤ 200 % (optimal: 100 %)</div>
+    </div>
+    <div class="card card-accent-blue">
+      <h3 style="color:var(--bilanz)">Anlagenfinanzierung <span style="font-size:11px;font-weight:400;color:var(--ink3);">beide Seiten</span></h3>
+      <p class="desc">Fristenkongruenz — goldene Bilanzregel: Langfristiges Vermögen soll langfristig finanziert sein.</p>
+      <div class="sep"></div>
+      <h4>Anlagendeckungsgrad I</h4>
+      <div class="formula">EK / AV × 100 %</div>
+      <p class="desc">Wie viel % des AV durch EK gedeckt? 100 % = fristenkongruent.</p>
+      <div class="richtwert">⚖ Prod. Gewerbe: gut >90 %, mittel 60–90 %, schlecht <60 %</div>
+      <div class="sep"></div>
+      <h4>Anlagendeckungsgrad II</h4>
+      <div class="formula">(EK + langfr. FK) / AV × 100 %</div>
+      <p class="desc">Langfristiges Kapital soll auch den eisernen Bestand des UV decken.</p>
+      <div class="richtwert">⚖ Prod. Gewerbe: gut >150 %, mittel 110–150 %, schlecht <110 %</div>
+    </div>
+    <div class="card card-accent-blue">
+      <h3 style="color:var(--bilanz)">Liquidität <span style="font-size:11px;font-weight:400;color:var(--ink3);">beide Seiten</span></h3>
+      <p class="desc">Kurzfristige Zahlungsfähigkeit — stichtagsbezogen.</p>
+      <div class="sep"></div>
+      <h4>Liquidität 1. Grades — Barliquidität</h4>
+      <div class="formula">Flüssige Mittel / kurzfr. FK × 100 %</div>
+      <p class="desc">Zahlungsfähigkeit „jetzt". Zu hoch = Kapitalrentabilität sinkt.</p>
+      <div class="richtwert">⚖ ca. 20 %</div>
+      <div class="sep"></div>
+      <h4>Liquidität 2. Grades — einzugsbedingt</h4>
+      <div class="formula">(Fl. Mittel + kurzfr. Ford.) / kurzfr. FK × 100 %</div>
+      <p class="desc">Zahlungsfähigkeit „morgen" — wenn Forderungen eingehen.</p>
+      <div class="richtwert">⚖ ≥ 100 %</div>
+      <div class="sep"></div>
+      <h4>Liquidität 3. Grades — umsatzbedingt</h4>
+      <div class="formula">(Fl. Mittel + kurzfr. Ford. + Vorräte) / kurzfr. FK × 100 %</div>
+      <p class="desc">Zahlungsfähigkeit „übermorgen" — wenn Vorräte verkauft werden.</p>
+      <div class="richtwert">⚖ ≥ 200 %</div>
+    </div>
+  </div>
+</div>
+
+<div id="b-rechner" class="sec">
+  <div class="section-title">Rechner</div>
+  <p class="section-sub">Eigene Bilanzdaten eingeben — alle Kennzahlen werden sofort berechnet.</p>
+  <div class="card" style="max-width:780px;">
+    <h3 style="margin-bottom:1rem;">Bilanzwerte <span style="font-size:11px;font-weight:400;color:var(--ink3);">in Tsd. €</span></h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:10px;margin-bottom:1.25rem;">
+      <div class="input-group"><div class="input-label">Anlagevermögen (AV)</div><input type="number" id="r_av" value="112610" oninput="calcAll()" style="width:130px"></div>
+      <div class="input-group"><div class="input-label">Vorräte</div><input type="number" id="r_vr" value="12805" oninput="calcAll()" style="width:130px"></div>
+      <div class="input-group"><div class="input-label">Forderungen (kurzfr.)</div><input type="number" id="r_fo" value="80087" oninput="calcAll()" style="width:130px"></div>
+      <div class="input-group"><div class="input-label">Flüssige Mittel</div><input type="number" id="r_fm" value="6900" oninput="calcAll()" style="width:130px"></div>
+      <div class="input-group"><div class="input-label">Eigenkapital (EK)</div><input type="number" id="r_ek" value="129142" oninput="calcAll()" style="width:130px"></div>
+      <div class="input-group"><div class="input-label">Fremdkapital langfristig</div><input type="number" id="r_fl" value="15742" oninput="calcAll()" style="width:130px"></div>
+      <div class="input-group"><div class="input-label">Fremdkapital kurzfristig</div><input type="number" id="r_fk" value="67518" oninput="calcAll()" style="width:130px"></div>
+    </div>
+    <div id="calc-results"></div>
+  </div>
+</div>
+
+<div id="b-eyelook" class="sec">
+  <div class="section-title">Eyelook AG — Bilanzkennzahlen</div>
+  <p class="section-sub">Berechnete Kennzahlen und Zeitvergleich aller drei Geschäftsjahre.</p>
+  <div class="yr-tabs">
+    <button class="yr-tab bt active" onclick="showBYear(2,this)">GJ 02</button>
+    <button class="yr-tab bt" onclick="showBYear(3,this)">GJ 03</button>
+    <button class="yr-tab bt" onclick="showBYear(4,this)">GJ 04</button>
+    <button class="yr-tab bt" onclick="showBYear(0,this)">Zeitvergleich</button>
+  </div>
+  <div id="b-year-view"></div>
+  <div id="b-chart-view" style="display:none;">
+    <div class="card"><h3 style="margin-bottom:1rem;">Entwicklung GJ02–GJ04</h3>
+      <div style="position:relative;height:300px;"><canvas id="trendChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:.75rem;">Interpretation</h3>
+      <table class="kz-table">
+        <thead><tr><th>Kennzahl</th><th>GJ 02</th><th>GJ 03</th><th>GJ 04</th><th>Entwicklung</th></tr></thead>
+        <tbody>
+          <tr><td>EK-Quote</td><td>60,8 %</td><td>69,9 %</td><td>64,1 %</td><td><span class="badge b-gut">Kapitalerhöhung GJ03, Verlust GJ04</span></td></tr>
+          <tr><td>ADG II</td><td>128,7 %</td><td>147,6 %</td><td>151,9 %</td><td><span class="badge b-mittel">Stetig verbessert — GJ04 erstmals gut</span></td></tr>
+          <tr><td>Liquidität I</td><td>10,2 %</td><td>12,1 %</td><td>10,2 %</td><td><span class="badge b-schlecht">Dauerhaft unter 20 % — schlecht</span></td></tr>
+          <tr><td>Liquidität II</td><td>128,8 %</td><td>180,5 %</td><td>166,7 %</td><td><span class="badge b-gut">Durchgehend über 100 %</span></td></tr>
+          <tr><td>Liquidität III</td><td>147,8 %</td><td>212,3 %</td><td>204,0 %</td><td><span class="badge b-mittel">GJ02 schlecht, ab GJ03 gut</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="b-quiz" class="sec">
+  ${quizHTML('bilanz')}
+</div>
+
+<div id="b-kritik" class="sec">
+  <div class="section-title">Kritische Analyse</div>
+  <p class="section-sub">Stärken und Schwächen aller vier Kennzahlenbereiche.</p>
+  <div class="card-grid">
+    <div class="card card-accent-blue">
+      <h3 style="color:var(--bilanz);margin-bottom:.75rem;">Vermögensstruktur</h3>
+      <div class="strengths"><h4>Stärken</h4><ul><li>Leicht zu ermitteln</li><li>Zeigt Art, Zusammensetzung & Bindungsdauer</li></ul></div>
+      <div class="sep"></div>
+      <div class="weaknesses"><h4>Schwächen</h4><ul><li>Stark branchenabhängig</li><li>Leasing nicht erfasst</li><li>Ursachen kaum identifizierbar</li><li>Nur stichtagsbezogen</li></ul></div>
+    </div>
+    <div class="card card-accent-blue">
+      <h3 style="color:var(--bilanz);margin-bottom:.75rem;">Kapitalstruktur</h3>
+      <div class="strengths"><h4>Stärken</h4><ul><li>Leicht zu ermitteln</li><li>Gute Aussagekraft im Zeitvergleich</li></ul></div>
+      <div class="sep"></div>
+      <div class="weaknesses"><h4>Schwächen</h4><ul><li>Stille Rücklagen fehlen</li><li>Bilanzneutrale Finanzierung (Leasing) nicht erfasst</li><li>Branchenübergreifend kaum vergleichbar</li><li>Nur stichtagsbezogen</li></ul></div>
+    </div>
+    <div class="card card-accent-blue">
+      <h3 style="color:var(--bilanz);margin-bottom:.75rem;">Anlagenfinanzierung</h3>
+      <div class="strengths"><h4>Stärken</h4><ul><li>Prüft Fristenkongruenz</li><li>Zweidimensionale Betrachtung</li><li>Kontrollinstrument für Liquidität</li></ul></div>
+      <div class="sep"></div>
+      <div class="weaknesses"><h4>Schwächen</h4><ul><li>Stille Rücklagen nicht berücksichtigt</li><li>ADG II unterstellt Kapitalfreisetzung — nicht immer realistisch</li><li>Nur stichtagsbezogen</li></ul></div>
+    </div>
+    <div class="card card-accent-blue">
+      <h3 style="color:var(--bilanz);margin-bottom:.75rem;">Liquidität</h3>
+      <div class="strengths"><h4>Stärken</h4><ul><li>Zeigt kurzfristige Zahlungsfähigkeit</li><li>Zweidimensionale Betrachtung</li><li>Drei Abstufungen möglich</li></ul></div>
+      <div class="sep"></div>
+      <div class="weaknesses"><h4>Schwächen</h4><ul><li>Kein Zukunftsbezug</li><li>GuV nicht berücksichtigt</li><li>Zielkonflikt: Liquidität vs. Rentabilität</li><li>Nur stichtagsbezogen</li></ul></div>
+    </div>
+  </div>
+</div>
+`;}
+
+/* ══ ERFOLG HTML ══ */
+function erfolgHTML(){return`
+<div id="e-theorie" class="sec active">
+  <div class="section-title">Erfolgskennzahlen — Theorie</div>
+  <p class="section-sub">Rentabilität, ROI, EBIT — Formeln und Richtwerte im Überblick.</p>
+  <div class="card-grid">
+    <div class="card card-accent-green">
+      <h3 style="color:var(--erfolg)">EK-Rentabilität</h3>
+      <div class="formula green">JÜ / EK × 100 %</div>
+      <p class="desc">Wie viel Rendite erzielt das Eigenkapital? Maßstab für Gesellschafter. Sollte über dem alternativen Kapitalmarktzins liegen.</p>
+      <div class="richtwert">⚖ Richtwert: > 10 %</div>
+    </div>
+    <div class="card card-accent-green">
+      <h3 style="color:var(--erfolg)">GK-Rentabilität</h3>
+      <div class="formula green">(JÜ + FK-Zinsen) / GK × 100 %</div>
+      <p class="desc">Rentabilität des gesamten eingesetzten Kapitals — unabhängig von der Finanzierungsstruktur. FK-Zinsen werden addiert, weil sie Vergütung für das FK sind.</p>
+      <div class="richtwert">⚖ Richtwert: > 8 %</div>
+    </div>
+    <div class="card card-accent-green">
+      <h3 style="color:var(--erfolg)">Umsatzrentabilität</h3>
+      <div class="formula green">JÜ / Umsatzerlöse × 100 %</div>
+      <p class="desc">Wie viel Gewinn bleibt je Euro Umsatz? Aussage über die operative Marge.</p>
+      <div class="richtwert">⚖ Richtwert: > 8 %</div>
+    </div>
+    <div class="card card-accent-green">
+      <h3 style="color:var(--erfolg)">ROI des Gesamtkapitals</h3>
+      <div class="formula green">Umsatzrentabilität × Kapitalumschlagshäufigkeit</div>
+      <p class="desc">DuPont-Zerlegung: ROI = (JÜ / Umsatz) × (Umsatz / GK). Verbindet Rentabilität und Umschlaggeschwindigkeit. Gezielte Maßnahmenableitung möglich.</p>
+      <div class="richtwert">⚖ Kapitalumschlag = Umsatz / GK</div>
+    </div>
+    <div class="card card-accent-green">
+      <h3 style="color:var(--erfolg)">EBIT</h3>
+      <div class="formula green">JÜ + Zinsaufwand − Zinsertrag + Steuern</div>
+      <p class="desc">Earnings Before Interest and Taxes — Ergebnis vor Zinsen und Steuern. Finanzierungs- und steuerneutral → geeignet für internationalen Vergleich.</p>
+      <div class="richtwert">⚖ Kein allgemeiner Richtwert — dient dem Vergleich</div>
+    </div>
+  </div>
+</div>
+
+<div id="e-eyelook" class="sec">
+  <div class="section-title">Eyelook AG — Erfolgskennzahlen</div>
+  <p class="section-sub">Berechnete Kennzahlen und Entwicklung GJ02–GJ04.</p>
+  <div class="yr-tabs">
+    <button class="yr-tab et active" onclick="showEYear(2,this)">GJ 02</button>
+    <button class="yr-tab et" onclick="showEYear(3,this)">GJ 03</button>
+    <button class="yr-tab et" onclick="showEYear(4,this)">GJ 04</button>
+    <button class="yr-tab et" onclick="showEYear(0,this)">Zeitvergleich</button>
+  </div>
+  <div id="e-year-view"></div>
+  <div id="e-chart-view" style="display:none;">
+    <div class="card"><h3 style="margin-bottom:1rem;">Entwicklung der Rentabilitäten GJ02–GJ04</h3>
+      <div style="position:relative;height:280px;"><canvas id="erfolgChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:.75rem;">Gesamtbewertung im Zeitverlauf</h3>
+      <table class="kz-table">
+        <thead><tr><th>Kennzahl</th><th>GJ 02</th><th>GJ 03</th><th>GJ 04</th><th>Fazit</th></tr></thead>
+        <tbody>
+          <tr><td>EK-Rentabilität</td><td>8,5 %</td><td>8,8 %</td><td>−11,6 %</td><td><span class="badge b-schlecht">GJ04 Verlust — äußerst schlecht</span></td></tr>
+          <tr><td>GK-Rentabilität</td><td>6,4 %</td><td>6,8 %</td><td>−6,7 %</td><td><span class="badge b-schlecht">Durchgehend unter 8 %, GJ04 negativ</span></td></tr>
+          <tr><td>Umsatzrentabilität</td><td>9,0 %</td><td>10,1 %</td><td>−12,6 %</td><td><span class="badge b-mittel">GJ02/03 gut, GJ04 äußerst schlecht</span></td></tr>
+          <tr><td>ROI</td><td>5,2 %</td><td>6,1 %</td><td>−7,5 %</td><td><span class="badge b-schlecht">GJ04 stark negativ</span></td></tr>
+          <tr><td>EBIT (Tsd. €)</td><td>12.982</td><td>14.281</td><td>−17.233</td><td><span class="badge b-schlecht">GJ04 massiver operativer Verlust</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="e-roibaum" class="sec">
+  <div class="section-title">ROI-Baum — Eyelook GJ02</div>
+  <p class="section-sub">DuPont-Zerlegung: Wie entsteht der ROI und wo kann man ansetzen?</p>
+  <div class="card">
+    <h4 style="margin-bottom:1rem;">Struktur des ROI GJ02</h4>
+    <div style="overflow-x:auto;padding-bottom:.5rem;">
+      <div style="display:flex;align-items:center;gap:0;min-width:700px;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+          <div class="roi-node highlight"><div class="lbl">ROI</div><div class="val" style="color:var(--bilanz)">5,17 %</div></div>
+        </div>
+        <div style="font-size:20px;color:var(--border2);padding:0 10px;">=</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div class="roi-node"><div class="lbl">Umsatzrendite</div><div class="val">8,97 %</div></div>
+          <div style="text-align:center;font-size:11px;font-weight:700;color:var(--ink3);">×</div>
+          <div class="roi-node"><div class="lbl">Kapitalumschlag</div><div class="val">0,576</div></div>
+        </div>
+        <div style="font-size:20px;color:var(--border2);padding:0 10px;">=</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <div class="roi-node"><div class="lbl">Gewinn v. Steuern</div><div class="val">10.980</div></div>
+            <div style="text-align:center;font-size:11px;font-weight:700;color:var(--ink3);">÷</div>
+            <div class="roi-node"><div class="lbl">Umsatz</div><div class="val">122.355</div></div>
+          </div>
+        </div>
+        <div style="font-size:20px;color:var(--border2);padding:0 10px;">×</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <div class="roi-node"><div class="lbl">Umsatz</div><div class="val">122.355</div></div>
+            <div style="text-align:center;font-size:11px;font-weight:700;color:var(--ink3);">÷</div>
+            <div class="roi-node"><div class="lbl">Bilanzsumme</div><div class="val">212.402</div></div>
+          </div>
+        </div>
+        <div style="font-size:20px;color:var(--border2);padding:0 10px;">=</div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:center;">
+          <div class="roi-node" style="background:var(--paper2)"><div class="lbl">Deckungsbeitrag</div><div class="val">39.955</div></div>
+          <div style="font-size:11px;font-weight:700;color:var(--ink3);">−</div>
+          <div class="roi-node" style="background:var(--paper2)"><div class="lbl">Fixe Kosten</div><div class="val">28.975</div></div>
+          <div style="font-size:11px;font-weight:700;color:var(--ink3);">+</div>
+          <div class="roi-node" style="background:var(--paper2)"><div class="lbl">AV</div><div class="val">112.610</div></div>
+          <div style="font-size:11px;font-weight:700;color:var(--ink3);">+</div>
+          <div class="roi-node" style="background:var(--paper2)"><div class="lbl">UV</div><div class="val">99.792</div></div>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--ink3);margin-top:.75rem;">Alle Werte in Tsd. €</div>
+  </div>
+  <div class="card">
+    <h4 style="margin-bottom:.75rem;">Maßnahmen zur ROI-Verbesserung (ausgehend von GJ02)</h4>
+    <table class="kz-table">
+      <thead><tr><th>#</th><th>Maßnahme</th><th>Neue Bilanzsumme / Umsatzrendite</th><th>ROI</th><th>Bewertung</th></tr></thead>
+      <tbody>
+        <tr><td style="color:var(--erfolg);font-weight:800;">1</td><td>Senkung der Herstellkosten (−variable Kosten)</td><td>Umsatzrendite → 11,02 %</td><td style="color:var(--erfolg);font-weight:800;">6,35 %</td><td><span class="badge b-gut">Höchster Zuwachs!</span></td></tr>
+        <tr><td>2</td><td>Senkung der fixen Kosten</td><td>Umsatzrendite → 10,16 %</td><td>5,85 %</td><td><span class="badge b-mittel">Gut</span></td></tr>
+        <tr><td>3</td><td>Verkauf nicht notwendigen AV</td><td>Bilanzsumme → 208.902</td><td>5,26 %</td><td><span class="badge b-mittel">Mittel</span></td></tr>
+        <tr><td>4</td><td>Abbau von Lagervorräten</td><td>Bilanzsumme → 190.610</td><td>5,76 %</td><td><span class="badge b-mittel">Gut</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="e-leverage" class="sec">
+  <div class="section-title">Leverage-Effekt</div>
+  <p class="section-sub">Hebelwirkung des Verschuldungsgrads auf die Eigenkapitalrentabilität.</p>
+  <div class="card-grid">
+    <div class="card card-accent-green">
+      <h3 style="color:var(--erfolg);margin-bottom:.75rem;">Formel</h3>
+      <div class="formula green">r_EK = r + (r − i) × FK / EK</div>
+      <p class="desc" style="margin-top:.5rem;"><strong>r</strong> = GK-Rentabilität &nbsp;·&nbsp; <strong>i</strong> = FK-Zinssatz &nbsp;·&nbsp; <strong>FK/EK</strong> = Verschuldungsgrad</p>
+      <div class="sep"></div>
+      <h4>Voraussetzung für positiven Leverage</h4>
+      <p class="desc">Wenn <strong>FK-Zinssatz &lt; GK-Rentabilität</strong>, dann steigert mehr FK die EK-Rentabilität.</p>
+      <div class="sep"></div>
+      <h4>Zielkonflikt</h4>
+      <p class="desc">Mehr FK → höhere EK-Rentabilität, aber auch mehr Risiko und geringere Stabilität. Der <strong>optimale Verschuldungsgrad</strong> ist ein Kompromiss.</p>
+    </div>
+    <div class="card card-accent-green">
+      <h3 style="color:var(--erfolg);margin-bottom:.75rem;">Zahlenbeispiel Eyelook AG</h3>
+      <p class="desc" style="margin-bottom:.75rem;">Investition 1.000.000 € · Gewinn 15 % · FK-Zinssatz 9 %</p>
+      <table class="lev-table">
+        <thead><tr><th>Position</th><th>① 100 % EK</th><th>② 40 % EK / 60 % FK</th></tr></thead>
+        <tbody>
+          <tr><td>Eigenkapital</td><td>1.000.000 €</td><td>400.000 €</td></tr>
+          <tr><td>Fremdkapital</td><td>—</td><td>600.000 €</td></tr>
+          <tr><td>Gewinn aus Investition</td><td>150.000 €</td><td>150.000 €</td></tr>
+          <tr><td>− FK-Zinsen (9 %)</td><td>—</td><td>54.000 €</td></tr>
+          <tr><td>= Reingewinn</td><td>150.000 €</td><td>96.000 €</td></tr>
+          <tr><td style="font-weight:800;">EK-Rentabilität</td><td>15 %</td><td class="highlight-cell">24 % !</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:.75rem;background:var(--erfolg-light);border-radius:var(--radius-sm);padding:.65rem .9rem;font-size:12px;color:var(--erfolg);font-weight:600;">
+        EK-Rentabilität steigt von 15 % auf 24 % — obwohl FK eingesetzt wurde!
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="e-cashflow" class="sec">
+  <div class="section-title">Cashflow</div>
+  <p class="section-sub">Liquiditätsanalyse aufgrund von Stromgrößen — die wirkliche Ertragskraft.</p>
+  <div class="card-grid">
+    <div class="card card-accent-green">
+      <h3 style="color:var(--erfolg);margin-bottom:.75rem;">Was ist der Cashflow?</h3>
+      <p class="desc">Den Unternehmen fließen flüssige Mittel in Form von Umsatzerlösen zu, von denen die fälligen Ausgaben bestritten werden. Der Restbetrag — der <strong>Cashflow</strong> — kann für Investitionen, Schuldentilgung oder Gewinnausschüttung verwendet werden.</p>
+      <div class="sep"></div>
+      <p class="desc">Anders als der JÜ (der durch überhöhte Abschreibungen künstlich klein gehalten werden kann) zeigt der Cashflow die <strong>wirkliche Ertragskraft</strong>, da nicht ausgabewirksame Aufwendungen wieder addiert werden.</p>
+    </div>
+    <div class="card card-accent-green">
+      <h3 style="color:var(--erfolg);margin-bottom:.75rem;">Praktikerformel (indirektes Verfahren)</h3>
+      <table class="kz-table">
+        <tbody>
+          <tr><td>Jahresüberschuss (nach Steuern)</td><td></td></tr>
+          <tr><td>+ Abschreibungen</td><td style="color:var(--gut)">+ nicht ausgabewirksam</td></tr>
+          <tr><td>− Zuschreibungen</td><td style="color:var(--schlecht)">− nicht einnahmewirksam</td></tr>
+          <tr><td>+ Erhöhung langfr. Rückstellungen</td><td style="color:var(--gut)">+ nicht ausgabewirksam</td></tr>
+          <tr><td>− Verminderung langfr. Rückstellungen</td><td style="color:var(--schlecht)">− nicht einnahmewirksam</td></tr>
+          <tr><td style="font-weight:800;border-top:2px solid var(--border);">= Cashflow</td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card card-accent-green">
+      <h3 style="color:var(--erfolg);margin-bottom:.75rem;">Cashflow-Umsatz-Relation</h3>
+      <div class="formula green">Cashflow / Umsatz × 100 %</div>
+      <p class="desc">Wie viel Prozent des Umsatzes bleiben als Mittel für Investitionen, Schuldentilgung und Dividendenzahlungen „in der Kasse"?</p>
+    </div>
+    <div class="card card-accent-green">
+      <h3 style="color:var(--erfolg);margin-bottom:.75rem;">Direktes vs. indirektes Verfahren</h3>
+      <table class="kz-table">
+        <thead><tr><th>Direktes Verfahren</th><th>Indirektes Verfahren</th></tr></thead>
+        <tbody>
+          <tr><td>Einnahmewirksame Erträge<br>− ausgabewirksame Aufwendungen</td><td>JÜ<br>+ nicht ausgabewirksame Aufwendungen<br>− nicht einnahmewirksame Erträge</td></tr>
+          <tr><td style="font-weight:700;">= Cashflow</td><td style="font-weight:700;">= Cashflow (identisch!)</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:.75rem;font-size:11px;color:var(--ink3);">Beide Verfahren führen zum gleichen Ergebnis. In der Praxis wird meist das indirekte Verfahren eingesetzt, da die Daten direkt aus der GuV ableitbar sind.</div>
+    </div>
+  </div>
+</div>
+
+<div id="e-quiz" class="sec">
+  ${quizHTML('erfolg')}
+</div>
+`;}
+
+/* ══ QUIZ HTML (generisch) ══ */
+function quizHTML(mod){
+  const cls=mod==='bilanz'?'bilanz-mb':'erfolg-mb';
+  const btnCls=mod==='bilanz'?'bilanz-btn':'erfolg-btn';
+  const pfCls=mod==='bilanz'?'pf-bilanz':'pf-erfolg';
+  const id=mod==='bilanz'?'b':'e';
+  return`<div style="max-width:700px;">
+  <div class="section-title">Quiz</div>
+  <p class="section-sub">Multiple Choice, Rechenaufgaben oder gemischt — mit Schwierigkeitsfilter.</p>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.9rem;">
+    <button class="mbtn ${cls} active" onclick="setMode('mc',this,'${mod}')">Multiple Choice</button>
+    <button class="mbtn ${cls}" onclick="setMode('calc',this,'${mod}')">Rechenaufgaben</button>
+    <button class="mbtn ${cls}" onclick="setMode('mixed',this,'${mod}')">Gemischt</button>
+  </div>
+  <div class="filter-row" id="${id}-filter-theme">
+    <button class="fbtn active" onclick="setFilter('all',this,'${id}-filter-theme')">Alle Themen</button>
+    ${mod==='bilanz'
+      ?'<button class="fbtn" onclick="setFilter(\'vermoegen\',this,\'b-filter-theme\')">Vermögensstruktur</button><button class="fbtn" onclick="setFilter(\'kapital\',this,\'b-filter-theme\')">Kapitalstruktur</button><button class="fbtn" onclick="setFilter(\'anlage\',this,\'b-filter-theme\')">Anlagenfinanzierung</button><button class="fbtn" onclick="setFilter(\'liquiditaet\',this,\'b-filter-theme\')">Liquidität</button><button class="fbtn" onclick="setFilter(\'eyelook\',this,\'b-filter-theme\')">Eyelook AG</button>'
+      :'<button class="fbtn" onclick="setFilter(\'rentabilitaet\',this,\'e-filter-theme\')">Rentabilität</button><button class="fbtn" onclick="setFilter(\'roi\',this,\'e-filter-theme\')">ROI</button><button class="fbtn" onclick="setFilter(\'ebit\',this,\'e-filter-theme\')">EBIT</button><button class="fbtn" onclick="setFilter(\'leverage\',this,\'e-filter-theme\')">Leverage</button><button class="fbtn" onclick="setFilter(\'cashflow\',this,\'e-filter-theme\')">Cashflow</button><button class="fbtn" onclick="setFilter(\'eyelook\',this,\'e-filter-theme\')">Eyelook AG</button>'
+    }
+  </div>
+  <div class="filter-row" id="${id}-filter-diff">
+    <button class="fbtn active" onclick="setDiff('all',this,'${id}-filter-diff')">Alle Schwierigkeiten</button>
+    <button class="fbtn" onclick="setDiff('leicht',this,'${id}-filter-diff')">Leicht</button>
+    <button class="fbtn" onclick="setDiff('mittel',this,'${id}-filter-diff')">Mittel</button>
+    <button class="fbtn" onclick="setDiff('schwer',this,'${id}-filter-diff')">Schwer</button>
+  </div>
+  <button class="btn-primary ${btnCls}" onclick="startQuiz('${mod}')" style="margin-bottom:1.25rem;">Quiz starten</button>
+  <div class="progress-bar"><div class="progress-fill ${pfCls}" id="${id}-quiz-progress" style="width:0%"></div></div>
+  <div class="q-counter" id="${id}-q-counter"></div>
+  <div id="${id}-quiz-container"></div>
+  <div id="${id}-quiz-score" style="display:none;" class="card"></div>
+</div>`;}
+
+/* ═══════════════════════════════════════════════════════
+   BILANZ LOGIC
+═══════════════════════════════════════════════════════ */
+function calcAll(){
+  const d={av:+document.getElementById('r_av').value||0,vr:+document.getElementById('r_vr').value||0,fo:+document.getElementById('r_fo').value||0,fm:+document.getElementById('r_fm').value||0,ek:+document.getElementById('r_ek').value||0,lfl:+document.getElementById('r_fl').value||0,kfk:+document.getElementById('r_fk').value||0};
+  d.gv=d.av+d.vr+d.fo+d.fm;d.gk=d.ek+d.lfl+d.kfk;
+  const kz=calcKZ(d);
+  let html='';
+  for(const k of kzKeys){const val=kz[k],b=bew(k,val);html+=`<div class="result-row"><span class="result-name">${kzLabels[k]}</span><div class="result-right"><span class="mono">${kzFormeln[k]}</span><span class="result-val">${val.toFixed(1)} %</span>${b?`<span class="badge ${bc(b)}">${b}</span>`:''}</div></div>`;}
+  const el=document.getElementById('calc-results');if(el)el.innerHTML=html;
+}
+function showBYear(yr,btn){
+  document.querySelectorAll('.yr-tab.bt').forEach(t=>t.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  const yv=document.getElementById('b-year-view'),cv=document.getElementById('b-chart-view');
+  if(yr===0){yv.style.display='none';cv.style.display='block';renderTC();return;}
+  yv.style.display='block';cv.style.display='none';
+  const d=eyeData[yr],kz=calcKZ(d);
+  let html=`<div class="kpi-grid"><div class="kpi"><div class="kpi-label">Gesamtvermögen</div><div class="kpi-val">${(d.gv/1000).toFixed(1)} Mio.€</div></div><div class="kpi"><div class="kpi-label">Eigenkapital</div><div class="kpi-val">${(d.ek/1000).toFixed(1)} Mio.€</div></div><div class="kpi"><div class="kpi-label">Fremdkapital</div><div class="kpi-val">${(kz.fk/1000).toFixed(1)} Mio.€</div></div><div class="kpi"><div class="kpi-label">Anlagevermögen</div><div class="kpi-val">${(d.av/1000).toFixed(1)} Mio.€</div></div></div><div class="card"><table class="kz-table"><thead><tr><th>Kennzahl</th><th>Formel</th><th>Ergebnis</th><th>Richtwert</th><th>Bewertung</th></tr></thead><tbody>`;
+  for(const k of kzKeys){const val=kz[k],b=bew(k,val);html+=`<tr><td>${kzLabels[k]}</td><td class="mono">${kzFormeln[k]}</td><td style="font-weight:700;">${val.toFixed(1)} %</td><td style="font-size:11px;color:var(--ink3);">${kzRichtwerte[k]}</td><td>${b?`<span class="badge ${bc(b)}">${b}</span>`:'-'}</td></tr>`;}
+  html+='</tbody></table></div>';yv.innerHTML=html;
+}
+function renderTC(){
+  if(trendCI){trendCI.destroy();trendCI=null;}
+  const sk=['ekquote','fkquote','adg1','adg2','liq1','liq2','liq3'];
+  const cl=['#1D4ED8','#065F46','#B45309','#D97706','#1D4ED8','#60A5FA','#34D399'];
+  const ds=[[],[5,5],[3,3],[8,3],[2,4],[6,2],[4,4]];
+  trendCI=new Chart(document.getElementById('trendChart'),{type:'line',data:{labels:['GJ 02','GJ 03','GJ 04'],datasets:sk.map((k,i)=>({label:kzLabels[k],data:[2,3,4].map(yr=>+calcKZ(eyeData[yr])[k].toFixed(1)),borderColor:cl[i],backgroundColor:cl[i]+'18',borderDash:ds[i],pointRadius:5,tension:0.3,fill:false}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{font:{size:11},boxWidth:12,padding:8}}},scales:{y:{grid:{color:'rgba(0,0,0,0.05)'}},x:{grid:{color:'rgba(0,0,0,0.05)'}}}}});
+}
+
+/* ═══════════════════════════════════════════════════════
+   ERFOLG LOGIC
+═══════════════════════════════════════════════════════ */
+function showEYear(yr,btn){
+  document.querySelectorAll('.yr-tab.et').forEach(t=>t.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  const yv=document.getElementById('e-year-view'),cv=document.getElementById('e-chart-view');
+  if(yr===0){yv.style.display='none';cv.style.display='block';renderErfolgChart();return;}
+  yv.style.display='block';cv.style.display='none';
+  const d=erfolgData[yr],e=calcErfolg(d);
+  const rows=[
+    {name:'EK-Rentabilität',f:'JÜ/EK×100',val:e.ekRent.toFixed(1)+'%',rw:'>10%',b:bewErfolg('ekRent',e.ekRent)},
+    {name:'GK-Rentabilität',f:'(JÜ+FKZ)/GK×100',val:e.gkRent.toFixed(1)+'%',rw:'>8%',b:bewErfolg('gkRent',e.gkRent)},
+    {name:'Umsatzrentabilität',f:'JÜ/Umsatz×100',val:e.umsRent.toFixed(1)+'%',rw:'>8%',b:bewErfolg('umsRent',e.umsRent)},
+    {name:'Kapitalumschlag',f:'Umsatz/GK',val:e.kapUmschlag.toFixed(4),rw:'—',b:''},
+    {name:'ROI',f:'UmsRent×Kapumschl.',val:e.roi.toFixed(1)+'%',rw:'ausreichend >5%',b:e.roi>5?'gut':e.roi>0?'mittel':'schlecht'},
+    {name:'EBIT',f:'JÜ+ZinsA−ZinsE+Steuern',val:(e.ebit<0?'−':'')+Math.abs(e.ebit).toFixed(0)+' Tsd.€',rw:'Internat. Vergleich',b:''},
+  ];
+  let html=`<div class="kpi-grid">
+    <div class="kpi"><div class="kpi-label">Jahresüberschuss</div><div class="kpi-val" style="color:${d.ju<0?'var(--schlecht)':'var(--gut)'}">${d.ju<0?'−':''}${Math.abs(d.ju/1000).toFixed(1)} Mio.€</div></div>
+    <div class="kpi"><div class="kpi-label">Umsatz</div><div class="kpi-val">${(d.umsatz/1000).toFixed(1)} Mio.€</div></div>
+    <div class="kpi"><div class="kpi-label">Eigenkapital</div><div class="kpi-val">${(d.ek/1000).toFixed(1)} Mio.€</div></div>
+    <div class="kpi"><div class="kpi-label">Gesamtkapital</div><div class="kpi-val">${(d.gk/1000).toFixed(1)} Mio.€</div></div>
+  </div>
+  <div class="card"><table class="kz-table"><thead><tr><th>Kennzahl</th><th>Formel</th><th>Ergebnis</th><th>Anforderung</th><th>Bewertung</th></tr></thead><tbody>`;
+  for(const r of rows)html+=`<tr><td>${r.name}</td><td class="mono">${r.f}</td><td style="font-weight:700;${r.val.startsWith('−')?'color:var(--schlecht)':''}">${r.val}</td><td style="font-size:11px;color:var(--ink3);">${r.rw}</td><td>${r.b?`<span class="badge ${bc(r.b)}">${r.b}</span>`:'-'}</td></tr>`;
+  html+='</tbody></table></div>';yv.innerHTML=html;
+}
+function renderErfolgChart(){
+  if(erfolgCI){erfolgCI.destroy();erfolgCI=null;}
+  const labels=['GJ 02','GJ 03','GJ 04'];
+  const ds=[
+    {label:'EK-Rentabilität',data:[2,3,4].map(y=>+calcErfolg(erfolgData[y]).ekRent.toFixed(1)),borderColor:'#1D4ED8',backgroundColor:'#1D4ED818',pointRadius:5,tension:.3},
+    {label:'GK-Rentabilität',data:[2,3,4].map(y=>+calcErfolg(erfolgData[y]).gkRent.toFixed(1)),borderColor:'#065F46',backgroundColor:'#065F4618',pointRadius:5,tension:.3},
+    {label:'Umsatzrentabilität',data:[2,3,4].map(y=>+calcErfolg(erfolgData[y]).umsRent.toFixed(1)),borderColor:'#B45309',backgroundColor:'#B4530918',pointRadius:5,tension:.3},
+    {label:'ROI',data:[2,3,4].map(y=>+calcErfolg(erfolgData[y]).roi.toFixed(1)),borderColor:'#7C3AED',backgroundColor:'#7C3AED18',borderDash:[5,5],pointRadius:5,tension:.3},
+  ];
+  erfolgCI=new Chart(document.getElementById('erfolgChart'),{type:'line',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{font:{size:11},boxWidth:12,padding:8}}},scales:{y:{grid:{color:'rgba(0,0,0,0.05)'}},x:{grid:{color:'rgba(0,0,0,0.05)'}}}}});
+}
+
+/* ═══════════════════════════════════════════════════════
+   QUIZ LOGIC
+═══════════════════════════════════════════════════════ */
+function setMode(m,btn,mod){quizMode=m;btn.closest('div').querySelectorAll('.mbtn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
+function setFilter(f,btn,rowId){quizFilter=f;document.getElementById(rowId).querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
+function setDiff(d,btn,rowId){quizDiff=d;document.getElementById(rowId).querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
+function shuffle(a){const r=[...a];for(let i=r.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[r[i],r[j]]=[r[j],r[i]];}return r;}
+function filtQ(pool){return pool.filter(q=>(quizFilter==='all'||q.t===quizFilter)&&(quizDiff==='all'||q.d===quizDiff));}
+
+function startQuiz(mod){
+  const id=mod==='bilanz'?'b':'e';
+  const mcPool=mod==='bilanz'?mcQB:mcQE;
+  const cPool=mod==='bilanz'?calcQB:calcQE;
+  let pool=[];
+  if(quizMode==='mc') pool=filtQ(mcPool);
+  else if(quizMode==='calc') pool=filtQ(cPool);
+  else pool=shuffle([...filtQ(mcPool),...filtQ(cPool)]);
+  if(!pool.length){document.getElementById(id+'-quiz-container').innerHTML='<div class="card" style="color:var(--ink2);">Keine Fragen für diese Kombination. Andere Filter wählen.</div>';return;}
+  aqList=shuffle(pool).slice(0,Math.min(pool.length,15));
+  qIdx=0;score=0;answered=false;wrongQ=[];
+  document.getElementById(id+'-quiz-score').style.display='none';
+  document.getElementById(id+'-quiz-progress').style.width='0%';
+  window._quizMod=mod;
+  renderQ(mod);
+}
+
+function renderQ(mod){
+  const id=mod==='bilanz'?'b':'e';
+  const pfCls=mod==='bilanz'?'pf-bilanz':'pf-erfolg';
+  const counter=document.getElementById(id+'-q-counter');
+  counter.textContent=aqList.length?`Frage ${qIdx+1} von ${aqList.length}`:'';
+  if(qIdx>=aqList.length){showScore(mod);return;}
+  document.getElementById(id+'-quiz-progress').style.width=((qIdx/aqList.length)*100)+'%';
+  const q=aqList[qIdx];answered=false;
+  const isC=!!q.f;
+  const db=q.d==='leicht'?'b-leicht':q.d==='mittel'?'b-mittel':'b-schwer';
+  let html=`<div class="card"><div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;"><span class="badge ${db}">${q.d}</span><span style="font-size:11px;color:var(--ink3);">${themeL[q.t]||q.t}</span></div><div class="quiz-q">${q.q}</div>`;
+  if(isC){
+    html+=`<div class="calc-q-box">${q.b}</div><div class="calc-formula-tag">${q.f}</div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:.5rem;"><input class="answer-input" type="number" id="calc-ans" step="0.1" placeholder="Ergebnis…"><span style="font-size:13px;color:var(--ink2);">${q.u}</span><button class="check-btn" onclick="checkC('${mod}')">Prüfen</button></div>`;
+  } else {
+    html+=`<div class="quiz-opts">`;
+    q.o.forEach((op,i)=>{html+=`<button class="quiz-opt" id="opt-${i}" onclick="answerMC(${i},'${mod}')">${op}</button>`;});
+    html+=`</div>`;
+  }
+  html+=`<div class="qfb" id="qfb"></div><button class="next-btn" id="next-q" style="display:none;" onclick="nextQ('${mod}')">Nächste Frage →</button></div>`;
+  document.getElementById(id+'-quiz-container').innerHTML=html;
+  if(isC){const inp=document.getElementById('calc-ans');if(inp)inp.addEventListener('keydown',e=>{if(e.key==='Enter')checkC(mod);});}
+}
+
+function answerMC(i,mod){
+  if(answered)return;answered=true;
+  const q=aqList[qIdx];
+  document.querySelectorAll('.quiz-opt').forEach(b=>b.disabled=true);
+  const fb=document.getElementById('qfb');
+  if(i===q.a){document.getElementById('opt-'+i).classList.add('correct');fb.textContent='Richtig! '+q.e;fb.className='qfb show ok';score++;}
+  else{document.getElementById('opt-'+i).classList.add('wrong');document.getElementById('opt-'+q.a).classList.add('correct');fb.textContent='Leider falsch. '+q.e;fb.className='qfb show nok';wrongQ.push(q);}
+  document.getElementById('next-q').style.display='inline-block';
+}
+function checkC(mod){
+  if(answered)return;
+  const q=aqList[qIdx];const val=parseFloat(document.getElementById('calc-ans').value);
+  if(isNaN(val))return;answered=true;
+  document.getElementById('calc-ans').disabled=true;
+  document.querySelector('.check-btn').disabled=true;
+  const fb=document.getElementById('qfb');
+  if(Math.abs(val-q.a)<=q.tol){fb.textContent='Richtig! '+q.e;fb.className='qfb show ok';score++;}
+  else{fb.textContent='Falsch. Richtig: '+q.a.toFixed(q.u==='€'?0:1)+' '+q.u+'. '+q.e;fb.className='qfb show nok';wrongQ.push(q);}
+  document.getElementById('next-q').style.display='inline-block';
+}
+function nextQ(mod){qIdx++;renderQ(mod);}
+
+function showScore(mod){
+  const id=mod==='bilanz'?'b':'e';
+  document.getElementById(id+'-quiz-container').innerHTML='';
+  document.getElementById(id+'-quiz-progress').style.width='100%';
+  document.getElementById(id+'-q-counter').textContent='';
+  const tot=aqList.length,pct=Math.round(score/tot*100);
+  const msg=pct>=85?'Ausgezeichnet — Abitur-ready!':pct>=70?'Sehr gut! Noch kleine Lücken.':pct>=50?'Gut — gezielt üben.':'Grundlagen nochmals durchgehen.';
+  let html=`<div class="score-big">${score} / ${tot}</div><div class="score-sub">${pct} % — ${msg}</div>
+  <div class="stat-grid">
+    <div class="stat"><div class="stat-val" style="color:var(--gut)">${score}</div><div class="stat-lbl">Richtig</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--schlecht)">${tot-score}</div><div class="stat-lbl">Falsch</div></div>
+    <div class="stat"><div class="stat-val">${pct} %</div><div class="stat-lbl">Quote</div></div>
+  </div>`;
+  if(wrongQ.length){
+    html+=`<div style="margin-top:1rem;"><div style="font-size:12px;font-weight:700;margin-bottom:.6rem;color:var(--ink2);">Falsch beantwortet — zum Nachlernen:</div>`;
+    wrongQ.forEach(q=>{const db=q.d==='leicht'?'b-leicht':q.d==='mittel'?'b-mittel':'b-schwer';html+=`<div style="border-top:1px solid var(--border);padding:9px 0;"><div style="display:flex;gap:5px;margin-bottom:3px;"><span class="badge ${db}">${q.d}</span><span style="font-size:11px;color:var(--ink3);">${themeL[q.t]||q.t}</span></div><div style="font-size:12px;font-weight:600;margin-bottom:3px;">${q.q}</div><div style="font-size:12px;color:var(--gut);">${q.e}</div></div>`;});
+    html+=`</div>`;
+  }
+  const btnCls=mod==='bilanz'?'bilanz-btn':'erfolg-btn';
+  html+=`<button class="btn-primary ${btnCls}" style="margin-top:1.25rem;" onclick="startQuiz('${mod}')">Nochmal</button>`;
+  const sc=document.getElementById(id+'-quiz-score');sc.innerHTML=html;sc.style.display='block';
+}
+</script>
+</body>
+</html>
